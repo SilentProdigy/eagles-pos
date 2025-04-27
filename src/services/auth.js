@@ -14,46 +14,58 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const auth = getAuth();
-  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+  
+  // Session timing configuration (in milliseconds)
+  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  const WARNING_TIME = 2 * 60 * 1000; // Show warning 2 minutes before timeout
+  
+  const [showWarning, setShowWarning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  
   let logoutTimer;
+  let warningTimer;
 
-  // Add this to your auth.js useEffect hook
-  useEffect(() => {
-    const handleActivity = () => {
-      if (currentUser) {
-        clearLogoutTimer();
-        setLogoutTimer();
-      }
-    };
-
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keypress', handleActivity);
-    window.addEventListener('scroll', handleActivity);
-    window.addEventListener('click', handleActivity);
-
-    return () => {
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keypress', handleActivity);
-      window.removeEventListener('scroll', handleActivity);
-      window.removeEventListener('click', handleActivity);
-    };
-  }, [currentUser]);
-
-  const clearLogoutTimer = () => {
+  const clearTimers = () => {
     if (logoutTimer) clearTimeout(logoutTimer);
+    if (warningTimer) clearTimeout(warningTimer);
   };
 
-  const setLogoutTimer = () => {
-    clearLogoutTimer();
+  const setTimers = () => {
+    clearTimers();
+    
+    // Set warning timer
+    warningTimer = setTimeout(() => {
+      setShowWarning(true);
+      setTimeLeft(WARNING_TIME / 1000); // Convert to seconds
+      
+      // Update countdown every second
+      const countdown = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(countdown);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+    }, SESSION_TIMEOUT - WARNING_TIME);
+    
+    // Set logout timer
     logoutTimer = setTimeout(() => {
       logout();
     }, SESSION_TIMEOUT);
   };
 
+  const extendSession = () => {
+    setShowWarning(false);
+    setTimers();
+  };
+
   const register = async (email, password) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      setLogoutTimer();
+      setTimers(); // Updated to use setTimers instead of setLogoutTimer
       return userCredential.user;
     } catch (error) {
       throw error;
@@ -63,7 +75,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      setLogoutTimer();
+      setTimers(); // Updated to use setTimers instead of setLogoutTimer
     } catch (error) {
       throw error;
     }
@@ -72,7 +84,7 @@ export function AuthProvider({ children }) {
   const guestLogin = async () => {
     try {
       await signInAnonymously(auth);
-      setLogoutTimer();
+      setTimers(); // Updated to use setTimers instead of setLogoutTimer
     } catch (error) {
       throw error;
     }
@@ -80,7 +92,7 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      clearLogoutTimer();
+      clearTimers(); // Updated to use clearTimers instead of clearLogoutTimer
       await signOut(auth);
     } catch (error) {
       console.error('Logout error:', error);
@@ -88,18 +100,36 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
+    const handleActivity = () => {
+      if (currentUser) {
+        clearTimers();
+        setTimers();
+        setShowWarning(false);
+      }
+    };
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => 
+      window.addEventListener(event, handleActivity)
+    );
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setLoading(false);
-      if (user) setLogoutTimer();
+      if (user) {
+        setTimers();
+        setShowWarning(false);
+      }
     });
 
-    // Cleanup on unmount
     return () => {
       unsubscribe();
-      clearLogoutTimer();
+      clearTimers();
+      events.forEach(event => 
+        window.removeEventListener(event, handleActivity)
+      );
     };
-  }, [auth]);
+  }, [auth, currentUser]);
 
   const value = {
     currentUser,
@@ -107,7 +137,10 @@ export function AuthProvider({ children }) {
     login,
     guestLogin,
     logout,
-    loading
+    loading,
+    showWarning,
+    timeLeft,
+    extendSession
   };
 
   return (

@@ -12,6 +12,7 @@ import AddStore from './components/AddStore';
 import PrivateRoute from './components/PrivateRoute';
 import InventoryManagement from './components/InventoryManagement';
 import LogoutButton from './components/LogoutButton';
+import SessionWarning from './components/SessionWarning';
 
 const theme = createTheme({
   palette: {
@@ -26,6 +27,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <BrowserRouter>
+          <SessionWarning />
           <LogoutButton />
           <Routes>
             <Route path="/login" element={<Login />} />
