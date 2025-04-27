@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { 
   getAuth, 
-  createUserWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInAnonymously,
   signOut,
-  signInAnonymously
+  onAuthStateChanged
 } from 'firebase/auth';
 
 export const AuthContext = createContext();
@@ -13,18 +14,46 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const auth = getAuth();
+  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+  let logoutTimer;
 
+  // Add this to your auth.js useEffect hook
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      setCurrentUser(user);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, [auth]);
+    const handleActivity = () => {
+      if (currentUser) {
+        clearLogoutTimer();
+        setLogoutTimer();
+      }
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keypress', handleActivity);
+    window.addEventListener('scroll', handleActivity);
+    window.addEventListener('click', handleActivity);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keypress', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+      window.removeEventListener('click', handleActivity);
+    };
+  }, [currentUser]);
+
+  const clearLogoutTimer = () => {
+    if (logoutTimer) clearTimeout(logoutTimer);
+  };
+
+  const setLogoutTimer = () => {
+    clearLogoutTimer();
+    logoutTimer = setTimeout(() => {
+      logout();
+    }, SESSION_TIMEOUT);
+  };
 
   const register = async (email, password) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      setLogoutTimer();
       return userCredential.user;
     } catch (error) {
       throw error;
@@ -34,6 +63,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      setLogoutTimer();
     } catch (error) {
       throw error;
     }
@@ -42,21 +72,42 @@ export function AuthProvider({ children }) {
   const guestLogin = async () => {
     try {
       await signInAnonymously(auth);
+      setLogoutTimer();
     } catch (error) {
       throw error;
     }
   };
 
-  const logout = () => {
-    return signOut(auth);
+  const logout = async () => {
+    try {
+      clearLogoutTimer();
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setLoading(false);
+      if (user) setLogoutTimer();
+    });
+
+    // Cleanup on unmount
+    return () => {
+      unsubscribe();
+      clearLogoutTimer();
+    };
+  }, [auth]);
 
   const value = {
     currentUser,
     register,
     login,
     guestLogin,
-    logout
+    logout,
+    loading
   };
 
   return (
@@ -66,6 +117,4 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => useContext(AuthContext);

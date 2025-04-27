@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/auth';
 import { db } from '../services/db';
-import { doc, setDoc, getDoc, collection } from 'firebase/firestore'; // Added collection import
+import { doc, setDoc, getDoc, collection } from 'firebase/firestore';
 import { 
-  Box,
-  Button,
-  TextField,
-  Typography,
-  CircularProgress
+  Box, Button, TextField, Typography, 
+  CircularProgress, Alert
 } from '@mui/material';
 
-const MAX_STORES_PER_USER = 5;
+const MAX_STORES = 5;
 
 function AddStore() {
   const { currentUser } = useAuth();
@@ -19,14 +17,13 @@ function AddStore() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const locationState = useLocation().state;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!currentUser) return setError('Authentication required');
     
-    if (!currentUser) {
-      return setError('You must be logged in to add stores');
-    }
-
     try {
       setLoading(true);
       setError('');
@@ -35,13 +32,13 @@ function AddStore() {
       // Check store count
       const userRef = doc(db, 'users', currentUser.uid);
       const userDoc = await getDoc(userRef);
-      const storeCount = userDoc.exists() ? (userDoc.data().stores || []).length : 0;
+      const storeCount = userDoc.data()?.stores?.length || 0;
 
-      if (storeCount >= MAX_STORES_PER_USER) {
-        return setError(`Maximum ${MAX_STORES_PER_USER} stores allowed per account`);
+      if (storeCount >= MAX_STORES) {
+        return setError(`Maximum ${MAX_STORES} stores allowed per account`);
       }
 
-      // Add store
+      // Create store
       const storeRef = doc(collection(db, 'stores'));
       await setDoc(storeRef, {
         name,
@@ -50,16 +47,21 @@ function AddStore() {
         createdAt: new Date()
       });
 
-      // Update user's store list
+      // Update user's stores list
       await setDoc(userRef, {
         stores: [...(userDoc.data()?.stores || []), storeRef.id]
       }, { merge: true });
 
-      setSuccess('Store added successfully!');
+      setSuccess('Store created successfully!');
       setName('');
       setLocation('');
+
+      // Redirect after first store creation
+      if (locationState?.firstStore) {
+        navigate('/');
+      }
     } catch (err) {
-      setError('Failed to add store: ' + err.message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -67,11 +69,11 @@ function AddStore() {
 
   return (
     <Box sx={{ maxWidth: 500, mx: 'auto', p: 3 }}>
-      <Typography variant="h6" gutterBottom>
-        Add New Store
+      <Typography variant="h5" gutterBottom>
+        {locationState?.firstStore ? 'Create Your First Store' : 'Add New Store'}
       </Typography>
-      {error && <Typography color="error">{error}</Typography>}
-      {success && <Typography color="success">{success}</Typography>}
+      {error && <Alert severity="error">{error}</Alert>}
+      {success && <Alert severity="success">{success}</Alert>}
       <form onSubmit={handleSubmit}>
         <TextField
           label="Store Name"
@@ -95,7 +97,7 @@ function AddStore() {
           disabled={loading}
           sx={{ mt: 2 }}
         >
-          {loading ? <CircularProgress size={24} /> : 'Add Store'}
+          {loading ? <CircularProgress size={24} /> : 'Create Store'}
         </Button>
       </form>
     </Box>
