@@ -2,15 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/auth';
 import { 
-  Avatar,
-  Box,
-  Button,
-  Container,
-  CssBaseline,
-  Grid,
-  Link,
-  TextField,
-  Typography
+  Container, Box, Avatar, Typography, 
+  TextField, Button, Grid, Link, CircularProgress
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
@@ -22,7 +15,19 @@ function Login() {
   const { login, guestLogin } = useAuth();
   const navigate = useNavigate();
 
-  async function handleSubmit(e) {
+  const handleGuestLogin = async () => {
+    try {
+      setLoading(true);
+      await guestLogin();
+      navigate('/');
+    } catch (err) {
+      setError('Guest login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setError('');
@@ -30,43 +35,26 @@ function Login() {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError('Failed to log in. Please check your credentials.');
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
+  };
 
   return (
     <Container component="main" maxWidth="xs">
-      <CssBaseline />
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
+      <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
           <LockOutlinedIcon />
         </Avatar>
-        <Typography component="h1" variant="h5">
-          POS System Login
-        </Typography>
-        {error && (
-          <Typography color="error" sx={{ mt: 2 }}>
-            {error}
-          </Typography>
-        )}
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+        <Typography component="h1" variant="h5">Eagle's Wings POS</Typography>
+        {error && <Typography color="error">{error}</Typography>}
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
           <TextField
             margin="normal"
             required
             fullWidth
-            id="email"
             label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -74,11 +62,8 @@ function Login() {
             margin="normal"
             required
             fullWidth
-            name="password"
             label="Password"
             type="password"
-            id="password"
-            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -89,39 +74,23 @@ function Login() {
             sx={{ mt: 3, mb: 2 }}
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? <CircularProgress size={24} /> : 'Sign In'}
           </Button>
-
           <Button
             fullWidth
             variant="outlined"
-            sx={{ mt: 2, mb: 2 }}
-            onClick={async () => {
-                try {
-                setLoading(true);
-                await guestLogin();
-                navigate('/');
-                } catch (error) {
-                    setError(`Guest login failed: ${error.message}`);
-                    console.error('Guest login error:', error);
-                  }
-                setLoading(false);
-            }}
+            onClick={handleGuestLogin}
             disabled={loading}
-            >
+            sx={{ mb: 2 }}
+          >
             Continue as Guest
-            </Button>
-
-          <Grid container gap={2}>
+          </Button>
+          <Grid container>
             <Grid item xs>
-              <Link href="#" variant="body2">
-                Forgot password?
-              </Link>
+              <Link href="#" variant="body2">Forgot password?</Link>
             </Grid>
             <Grid item>
-              <Link href="#" variant="body2">
-                Contact Admin
-              </Link>
+              <Link href="/register" variant="body2">Don't have an account? Sign Up</Link>
             </Grid>
           </Grid>
         </Box>
