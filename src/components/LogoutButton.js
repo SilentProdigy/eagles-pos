@@ -9,9 +9,10 @@ function LogoutButton() {
   return (
     <Button
       variant="outlined"
+      color='inherit'
       startIcon={<LogoutIcon />}
       onClick={logout}
-      sx={{ position: 'fixed', top: 16, right: 16 }}
+      // sx={{ position: 'fixed', top: 16, right: 16 }}
     >
       Logout
     </Button>

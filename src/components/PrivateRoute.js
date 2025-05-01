@@ -1,11 +1,12 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../services/auth';
+import { Navigate } from 'react-router-dom';
 
-function PrivateRoute() {
+export default function PrivateRoute({ children }) {
   const { currentUser } = useAuth();
   
-  return currentUser ? <Outlet /> : <Navigate to="/login" replace />;
-}
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
 
-export default PrivateRoute;
+  return children;
+}

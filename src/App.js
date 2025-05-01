@@ -13,6 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import InventoryManagement from './components/InventoryManagement';
 import LogoutButton from './components/LogoutButton';
 import SessionWarning from './components/SessionWarning';
+import POSPage from './components/POSPage';
 
 const theme = createTheme({
   palette: {
@@ -28,10 +29,15 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <SessionWarning />
-          <LogoutButton />
+          {/* <LogoutButton /> */}
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/select-store" element={
+              <PrivateRoute>
+                <StoreSelector />
+              </PrivateRoute>
+            } />
             <Route path="/add-store" element={
               <PrivateRoute>
                 <AddStore />
@@ -40,6 +46,11 @@ function App() {
             <Route path="/inventory" element={
               <PrivateRoute>
                 <InventoryManagement />
+              </PrivateRoute>
+            } />
+            <Route path="/pos/:storeId" element={
+              <PrivateRoute>
+                <POSPage /> {/* Create this component */}
               </PrivateRoute>
             } />
             <Route element={<PrivateRoute />}>

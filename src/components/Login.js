@@ -33,7 +33,7 @@ function Login() {
       setError('');
       setLoading(true);
       await login(email, password);
-      navigate('/');
+      navigate('/select-store');
     } catch (err) {
       setError(err.message);
     } finally {
